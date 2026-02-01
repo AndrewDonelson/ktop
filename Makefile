@@ -4,11 +4,12 @@
 BINARY_NAME=ktop
 VERSION=1.0.0
 GO=go
+BIN_DIR=bin
 
-# Deploy configuration
-DEPLOY_HOST=192.168.1.76
-DEPLOY_USER=andrew
-DEPLOY_PATH=/usr/local/bin/ktop
+# Deploy configuration - override with: make deploy DEPLOY_HOST=x.x.x.x DEPLOY_USER=myuser
+DEPLOY_HOST ?= 192.168.1.76
+DEPLOY_USER ?= andrew
+DEPLOY_PATH ?= /usr/local/bin/ktop
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X github.com/nlaak/ktop/internal/config.Version=$(VERSION)"
@@ -22,36 +23,45 @@ all: build
 build:
 	$(GO) build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/ktop
 
-# Build for Linux amd64 (most common server target)
+# Build for Linux amd64
 .PHONY: build-linux
 build-linux:
-	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BINARY_NAME)-linux-amd64 ./cmd/ktop
+	@mkdir -p $(BIN_DIR)/linux-amd64
+	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BIN_DIR)/linux-amd64/$(BINARY_NAME) ./cmd/ktop
 
 # Build for Linux arm64
 .PHONY: build-linux-arm
 build-linux-arm:
-	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(BINARY_NAME)-linux-arm64 ./cmd/ktop
+	@mkdir -p $(BIN_DIR)/linux-arm64
+	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(BIN_DIR)/linux-arm64/$(BINARY_NAME) ./cmd/ktop
 
-# macOS builds
+# macOS AMD64
 .PHONY: build-darwin
 build-darwin:
-	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BINARY_NAME)-darwin-amd64 ./cmd/ktop
-	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(BINARY_NAME)-darwin-arm64 ./cmd/ktop
+	@mkdir -p $(BIN_DIR)/darwin-amd64
+	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BIN_DIR)/darwin-amd64/$(BINARY_NAME) ./cmd/ktop
 
-# Windows builds
+# macOS ARM64 (Apple Silicon)
+.PHONY: build-darwin-arm
+build-darwin-arm:
+	@mkdir -p $(BIN_DIR)/darwin-arm64
+	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(BIN_DIR)/darwin-arm64/$(BINARY_NAME) ./cmd/ktop
+
+# Windows AMD64
 .PHONY: build-windows
 build-windows:
-	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/ktop
+	@mkdir -p $(BIN_DIR)/windows-amd64
+	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(BIN_DIR)/windows-amd64/$(BINARY_NAME).exe ./cmd/ktop
 
 # Build for all platforms
 .PHONY: build-all
-build-all: build-linux build-linux-arm build-darwin build-windows
+build-all: build-linux build-linux-arm build-darwin build-darwin-arm build-windows
 
-# Deploy to cluster master
+# Deploy to remote host
 .PHONY: deploy
 deploy: build-linux
 	@echo "Deploying ktop to $(DEPLOY_USER)@$(DEPLOY_HOST)..."
-	rsync -avz --progress ./$(BINARY_NAME)-linux-amd64 $(DEPLOY_USER)@$(DEPLOY_HOST):~/$(BINARY_NAME)
+	rsync -avz --progress $(BIN_DIR)/linux-amd64/$(BINARY_NAME) $(DEPLOY_USER)@$(DEPLOY_HOST):~/$(BINARY_NAME)
 	ssh -t $(DEPLOY_USER)@$(DEPLOY_HOST) "sudo mv ~/$(BINARY_NAME) $(DEPLOY_PATH) && sudo chmod +x $(DEPLOY_PATH)"
 	@echo "Done! Run 'ktop' on $(DEPLOY_HOST)"
 
@@ -60,7 +70,7 @@ deploy: build-linux
 deploy-user: build-linux
 	@echo "Deploying ktop to $(DEPLOY_USER)@$(DEPLOY_HOST):~/bin/..."
 	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "mkdir -p ~/bin"
-	rsync -avz --progress ./$(BINARY_NAME)-linux-amd64 $(DEPLOY_USER)@$(DEPLOY_HOST):~/bin/$(BINARY_NAME)
+	rsync -avz --progress $(BIN_DIR)/linux-amd64/$(BINARY_NAME) $(DEPLOY_USER)@$(DEPLOY_HOST):~/bin/$(BINARY_NAME)
 	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "chmod +x ~/bin/$(BINARY_NAME)"
 	@echo "Done! Run '~/bin/ktop' on $(DEPLOY_HOST)"
 
@@ -129,11 +139,7 @@ vet:
 .PHONY: clean
 clean:
 	rm -f $(BINARY_NAME)
-	rm -f $(BINARY_NAME)-linux-amd64
-	rm -f $(BINARY_NAME)-linux-arm64
-	rm -f $(BINARY_NAME)-darwin-amd64
-	rm -f $(BINARY_NAME)-darwin-arm64
-	rm -f $(BINARY_NAME)-windows-amd64.exe
+	rm -rf $(BIN_DIR)
 	rm -f coverage.out coverage.html
 
 # Show help
@@ -144,9 +150,9 @@ help:
 	@echo "Usage:"
 	@echo "  make              Build for current platform"
 	@echo "  make build        Build for current platform"
-	@echo "  make build-linux  Build for Linux amd64"
-	@echo "  make build-all    Build for all platforms"
-	@echo "  make deploy       Build and deploy to cluster master ($(DEPLOY_HOST))"
+	@echo "  make build-linux  Build for Linux amd64 -> bin/linux-amd64/ktop"
+	@echo "  make build-all    Build for all platforms -> bin/{arch}/ktop"
+	@echo "  make deploy       Build and deploy to remote host"
 	@echo "  make deploy-user  Deploy to ~/bin (no sudo required)"
 	@echo "  make ship         Alias for deploy"
 	@echo "  make run          Run the application"
@@ -157,7 +163,10 @@ help:
 	@echo "  make clean        Clean build artifacts"
 	@echo "  make help         Show this help"
 	@echo ""
-	@echo "Deploy config (edit in Makefile):"
+	@echo "Deploy variables (override on command line):"
 	@echo "  DEPLOY_HOST = $(DEPLOY_HOST)"
 	@echo "  DEPLOY_USER = $(DEPLOY_USER)"
 	@echo "  DEPLOY_PATH = $(DEPLOY_PATH)"
+	@echo ""
+	@echo "Example:"
+	@echo "  make deploy DEPLOY_HOST=10.0.0.5 DEPLOY_USER=admin"

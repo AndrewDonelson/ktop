@@ -133,7 +133,7 @@ func (c *Collector) mergeNodeData(nodes []corev1.Node, metrics map[string]nodeMe
 		// Get capacity
 		cpuCap := n.Status.Capacity.Cpu()
 		memCap := n.Status.Capacity.Memory()
-		
+
 		node.CPU.Capacity = cpuCap.MilliValue()
 		node.Memory.Capacity = memCap.Value()
 
@@ -146,7 +146,7 @@ func (c *Collector) mergeNodeData(nodes []corev1.Node, metrics map[string]nodeMe
 		if m, ok := metrics[n.Name]; ok {
 			node.CPU.Current = m.CPU
 			node.Memory.Current = m.Memory
-			
+
 			if node.CPU.Capacity > 0 {
 				node.CPU.Percent = float64(m.CPU) / float64(node.CPU.Capacity) * 100
 			}
@@ -208,11 +208,11 @@ func (c *Collector) getNodeConditions(node corev1.Node) models.NodeConditions {
 func (c *Collector) countPodsOnNode(nodeName string) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	if c.lastMetrics == nil {
 		return 0
 	}
-	
+
 	count := 0
 	for _, pod := range c.lastMetrics.Pods {
 		if pod.NodeName == nodeName {
@@ -353,6 +353,17 @@ func (c *Collector) calculateAggregates(metrics *models.ClusterMetrics) {
 		metrics.TotalCPUUsed += node.CPU.Current
 		metrics.TotalMemoryCapacity += node.Memory.Capacity
 		metrics.TotalMemoryUsed += node.Memory.Current
+		metrics.TotalDiskCapacity += node.Disk.Capacity
+		metrics.TotalDiskUsed += node.Disk.Current
+
+		// Count CPU cores (capacity in millicores / 1000)
+		metrics.TotalCPUCores += int(node.CPU.Capacity / 1000)
+
+		// Count GPUs
+		if node.GPU != nil {
+			metrics.TotalGPUs += node.GPU.Count
+		}
+
 		if node.Status == models.NodeStatusReady {
 			metrics.ReadyNodes++
 		}

@@ -89,10 +89,14 @@ type ClusterMetrics struct {
 	Error       error
 
 	// Aggregate stats
-	TotalCPUCapacity    int64
-	TotalCPUUsed        int64
+	TotalCPUCapacity    int64 // millicores
+	TotalCPUUsed        int64 // millicores
+	TotalCPUCores       int   // number of cores
 	TotalMemoryCapacity int64
 	TotalMemoryUsed     int64
+	TotalDiskCapacity   int64
+	TotalDiskUsed       int64
+	TotalGPUs           int
 	TotalPods           int
 	TotalNodes          int
 	ReadyNodes          int

@@ -24,6 +24,7 @@ type App struct {
 	// UI components
 	mainFlex   *tview.Flex
 	header     *tview.TextView
+	summary    *tview.TextView
 	nodesTable *tview.Table
 	podsTable  *tview.Table
 	footer     *tview.TextView
@@ -72,6 +73,12 @@ func (a *App) setupUI() {
 		SetTextAlign(tview.AlignLeft)
 	a.header.SetBorder(false)
 
+	// Summary bar (cluster totals)
+	a.summary = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft)
+	a.summary.SetBorder(false)
+
 	// Nodes table
 	a.nodesTable = tview.NewTable().
 		SetBorders(false).
@@ -111,7 +118,8 @@ func (a *App) setupUI() {
 
 	// Main layout
 	a.mainFlex = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(a.header, 3, 0, false).
+		AddItem(a.header, 1, 0, false).
+		AddItem(a.summary, 2, 0, false).
 		AddItem(a.nodesTable, 0, 1, true).
 		AddItem(a.podsTable, 0, 2, false).
 		AddItem(a.footer, 1, 0, false)
@@ -282,7 +290,8 @@ func (a *App) cycleViewMode() {
 // updateLayout updates the layout based on view mode
 func (a *App) updateLayout() {
 	a.mainFlex.Clear()
-	a.mainFlex.AddItem(a.header, 3, 0, false)
+	a.mainFlex.AddItem(a.header, 1, 0, false)
+	a.mainFlex.AddItem(a.summary, 2, 0, false)
 
 	switch a.state.ViewMode {
 	case models.ViewModeSplit:
@@ -374,6 +383,7 @@ func (a *App) updateUI() {
 	a.stateMu.RUnlock()
 
 	a.updateHeader(m, state)
+	a.updateSummary(m)
 	a.updateNodesTable(m, state)
 	a.updatePodsTable(m, state)
 	a.updateFooter(m, state)
@@ -389,30 +399,69 @@ func (a *App) updateHeader(m *models.ClusterMetrics, state models.AppState) {
 	elapsed := time.Since(m.Timestamp)
 	refreshStr := formatDuration(elapsed)
 
-	// Calculate cluster-wide usage
-	var cpuPercent, memPercent float64
+	header := fmt.Sprintf("[yellow]ktop[-] - [white]%s[-] [gray](%s)[-]   Nodes: [white]%d/%d[-]   [gray]Updated: %s ago[-]",
+		m.ClusterInfo.Name, m.ClusterInfo.Context, m.ReadyNodes, m.TotalNodes, refreshStr)
+
+	if m.Error != nil {
+		header += fmt.Sprintf("  [red]⚠ %s[-]", m.Error.Error())
+	}
+
+	a.header.SetText(header)
+}
+
+// updateSummary updates the cluster resource summary bar
+func (a *App) updateSummary(m *models.ClusterMetrics) {
+	if m == nil {
+		a.summary.SetText("[gray]Loading cluster resources...[-]")
+		return
+	}
+
+	// Calculate percentages
+	var cpuPercent, memPercent, diskPercent float64
 	if m.TotalCPUCapacity > 0 {
 		cpuPercent = float64(m.TotalCPUUsed) / float64(m.TotalCPUCapacity) * 100
 	}
 	if m.TotalMemoryCapacity > 0 {
 		memPercent = float64(m.TotalMemoryUsed) / float64(m.TotalMemoryCapacity) * 100
 	}
-
-	cpuColor := a.colors.GetResourceColor(cpuPercent)
-	memColor := a.colors.GetResourceColor(memPercent)
-
-	header := fmt.Sprintf("[yellow]ktop[-] - [white]%s[-] [gray](%s)[-]   ", 
-		m.ClusterInfo.Name, m.ClusterInfo.Context)
-	header += fmt.Sprintf("Nodes: [white]%d/%d[-]  ", m.ReadyNodes, m.TotalNodes)
-	header += fmt.Sprintf("CPU: %s  ", ColoredText(fmt.Sprintf("%.1f%%", cpuPercent), cpuColor))
-	header += fmt.Sprintf("Mem: %s  ", ColoredText(fmt.Sprintf("%.1f%%", memPercent), memColor))
-	header += fmt.Sprintf("[gray]Updated: %s ago[-]", refreshStr)
-
-	if m.Error != nil {
-		header += fmt.Sprintf("\n[red]Error: %s[-]", m.Error.Error())
+	if m.TotalDiskCapacity > 0 {
+		diskPercent = float64(m.TotalDiskUsed) / float64(m.TotalDiskCapacity) * 100
 	}
 
-	a.header.SetText(header)
+	// Get colors based on usage
+	cpuColor := a.colors.GetResourceColor(cpuPercent)
+	memColor := a.colors.GetResourceColor(memPercent)
+	diskColor := a.colors.GetResourceColor(diskPercent)
+
+	// Build summary line 1: CPU and Memory
+	line1 := fmt.Sprintf("[white]CPU:[white] [gray]%d cores[-]  %s / %s  %s   ",
+		m.TotalCPUCores,
+		ColoredText(metrics.FormatCPU(m.TotalCPUUsed), cpuColor),
+		metrics.FormatCPU(m.TotalCPUCapacity),
+		ColoredText(fmt.Sprintf("%.1f%%", cpuPercent), cpuColor))
+
+	line1 += fmt.Sprintf("[white]RAM:[-]  %s / %s  %s   ",
+		ColoredText(metrics.FormatMemory(m.TotalMemoryUsed), memColor),
+		metrics.FormatMemory(m.TotalMemoryCapacity),
+		ColoredText(fmt.Sprintf("%.1f%%", memPercent), memColor))
+
+	// Add disk if available
+	if m.TotalDiskCapacity > 0 {
+		line1 += fmt.Sprintf("[white]DISK:[-]  %s / %s  %s   ",
+			ColoredText(metrics.FormatMemory(m.TotalDiskUsed), diskColor),
+			metrics.FormatMemory(m.TotalDiskCapacity),
+			ColoredText(fmt.Sprintf("%.1f%%", diskPercent), diskColor))
+	}
+
+	// Add GPU count
+	if m.TotalGPUs > 0 {
+		line1 += fmt.Sprintf("[white]GPUs:[-] [green]%d[-]", m.TotalGPUs)
+	}
+
+	// Build summary line 2: Pods
+	line2 := fmt.Sprintf("[white]Pods:[-] [cyan]%d[-] running", m.TotalPods)
+
+	a.summary.SetText(line1 + "\n" + line2)
 }
 
 // updateNodesTable updates the nodes table
@@ -530,7 +579,7 @@ func (a *App) updatePodsTable(m *models.ClusterMetrics, state models.AppState) {
 	if state.NamespaceFilter != "" {
 		filterStr = state.NamespaceFilter
 	}
-	a.podsTable.SetTitle(fmt.Sprintf(" PODS (top %d by %s %s) [filter: %s] ", 
+	a.podsTable.SetTitle(fmt.Sprintf(" PODS (top %d by %s %s) [filter: %s] ",
 		len(pods), state.PodSortField.String(), sortIndicator, filterStr))
 
 	// Populate rows
