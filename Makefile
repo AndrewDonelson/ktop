@@ -1,10 +1,15 @@
 # ktop Makefile
 # Kubernetes Cluster Monitor TUI
+# https://github.com/nlaak/ktop
 
 BINARY_NAME=ktop
-VERSION=1.0.0
 GO=go
 BIN_DIR=bin
+
+# Version: YYYYMMDD.HHMM-{alpha|beta|prod}
+# Override with: make build-linux RELEASE=prod
+RELEASE ?= alpha
+VERSION := $(shell date +%Y%m%d.%H%M)-$(RELEASE)
 
 # Deploy configuration - override with: make deploy DEPLOY_HOST=x.x.x.x DEPLOY_USER=myuser
 DEPLOY_HOST ?= 192.168.1.76
@@ -146,27 +151,45 @@ clean:
 .PHONY: help
 help:
 	@echo "ktop - Kubernetes Cluster Monitor"
+	@echo "Version: $(VERSION)"
 	@echo ""
-	@echo "Usage:"
-	@echo "  make              Build for current platform"
+	@echo "Build:"
+	@echo "  make              Build for current platform (alpha)"
 	@echo "  make build        Build for current platform"
 	@echo "  make build-linux  Build for Linux amd64 -> bin/linux-amd64/ktop"
 	@echo "  make build-all    Build for all platforms -> bin/{arch}/ktop"
+	@echo "  make release      Build all platforms as production release"
+	@echo ""
+	@echo "Deploy:"
 	@echo "  make deploy       Build and deploy to remote host"
 	@echo "  make deploy-user  Deploy to ~/bin (no sudo required)"
 	@echo "  make ship         Alias for deploy"
-	@echo "  make run          Run the application"
-	@echo "  make install      Install to GOPATH/bin"
+	@echo ""
+	@echo "Development:"
+	@echo "  make run          Run the application locally"
 	@echo "  make deps         Download dependencies"
 	@echo "  make test         Run tests"
 	@echo "  make fmt          Format code"
+	@echo "  make lint         Run linter"
 	@echo "  make clean        Clean build artifacts"
-	@echo "  make help         Show this help"
 	@echo ""
-	@echo "Deploy variables (override on command line):"
+	@echo "Variables (override on command line):"
+	@echo "  RELEASE     = $(RELEASE)      (alpha|beta|prod)"
 	@echo "  DEPLOY_HOST = $(DEPLOY_HOST)"
 	@echo "  DEPLOY_USER = $(DEPLOY_USER)"
 	@echo "  DEPLOY_PATH = $(DEPLOY_PATH)"
 	@echo ""
-	@echo "Example:"
+	@echo "Examples:"
+	@echo "  make build-linux RELEASE=prod"
 	@echo "  make deploy DEPLOY_HOST=10.0.0.5 DEPLOY_USER=admin"
+	@echo "  make release                      # Build all platforms as prod"
+
+# Build production release for all platforms
+.PHONY: release
+release:
+	@$(MAKE) build-all RELEASE=prod
+
+# Show current version
+.PHONY: version
+version:
+	@echo "$(VERSION)"

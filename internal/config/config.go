@@ -8,10 +8,11 @@ import (
 	"time"
 )
 
-const (
-	// Version is the current version of ktop
-	Version = "1.0.0"
+// Version is set at build time via ldflags
+// Format: YYYYMMDD.HHMM-{alpha|beta|prod}
+var Version = "dev"
 
+const (
 	// DefaultRefreshInterval is the default metrics refresh interval
 	DefaultRefreshInterval = 2 * time.Second
 
@@ -145,8 +146,13 @@ func (c *Config) Validate() error {
 
 // PrintVersion prints version information
 func PrintVersion() {
-	fmt.Printf("ktop version %s\n", Version)
-	fmt.Printf("Kubernetes Cluster Monitor\n")
+	fmt.Printf("ktop %s\n", Version)
+	fmt.Println("Kubernetes Cluster Monitor (Official)")
+	fmt.Println()
+	fmt.Println("Copyright (c) 2026 Nlaak Studios")
+	fmt.Println("Author:  Andrew Donelson <https://andrewdonelson.com>")
+	fmt.Println("Website: https://nlaak.com")
+	fmt.Println("Source:  https://github.com/andrewdonelson/ktop")
 }
 
 // ThresholdConfig holds threshold values for color coding

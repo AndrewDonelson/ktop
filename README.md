@@ -1,86 +1,100 @@
-# ktop
+<p align="center">
+  <h1 align="center">ktop</h1>
+  <p align="center">
+    <strong>Real-time Kubernetes cluster monitoring in your terminal</strong>
+  </p>
+  <p align="center">
+    <a href="#installation">Installation</a> •
+    <a href="#usage">Usage</a> •
+    <a href="#configuration">Configuration</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
+</p>
 
-A terminal UI (TUI) monitoring tool for Kubernetes clusters, similar to `htop` for Linux or `nvtop` for GPUs.
+---
 
-![ktop screenshot](docs/screenshot.png)
+**ktop** is a lightweight terminal UI (TUI) for monitoring Kubernetes clusters, inspired by [htop](https://htop.dev/) and [nvtop](https://github.com/Syllo/nvtop). Get instant visibility into node and pod resource usage with color-coded metrics and interactive controls.
 
-## Features
+![ktop screenshot](docs/htop-preview.png)
 
-- **Real-time monitoring** - Updates metrics every 2 seconds (configurable)
-- **Node-level visibility** - CPU, memory, disk usage per node with capacity percentages
-- **Pod-level visibility** - Resource usage for running pods with sortable columns
-- **GPU support** - Display GPU count and memory if available (NVIDIA)
-- **Status indicators** - Visual feedback on node health and resource pressure
-- **Lightweight** - Single binary, minimal dependencies
-- **Interactive** - Keyboard controls for sorting, filtering, and navigation
+## ✨ Features
 
-## Installation
+- **Real-time metrics** — CPU, memory, disk, and GPU usage updated every 2 seconds
+- **Cluster overview** — Total resources, node count, and aggregate utilization at a glance
+- **Node monitoring** — Per-node CPU, memory, pod count, and GPU availability
+- **Pod monitoring** — Sortable list of pods with resource consumption and restart counts
+- **GPU support** — Automatic detection of NVIDIA GPUs via device plugin labels
+- **Interactive controls** — Sort, filter, and navigate with keyboard shortcuts
+- **Color-coded thresholds** — Green (healthy), yellow (warning), red (critical)
+- **Single binary** — No dependencies, just drop it on your cluster and run
+- **Cross-platform** — Linux, macOS, and Windows builds available
 
-### From Source
+## 📋 Requirements
 
-Requires Go 1.25 or later.
+- Kubernetes cluster with [metrics-server](https://github.com/kubernetes-sigs/metrics-server) installed
+- Valid kubeconfig file (`~/.kube/config` or `KUBECONFIG` env var)
+- Network access to the Kubernetes API server
+
+### Installing metrics-server
+
+<details>
+<summary><strong>Standard Kubernetes</strong></summary>
 
 ```bash
-# Clone the repository
-git clone https://github.com/nlaak/ktop.git
-cd ktop
-
-# Build
-make build
-
-# Install to /usr/local/bin
-sudo make install-system
-
-# Or install to GOPATH/bin
-make install
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
+</details>
 
-### Pre-built Binaries
-
-Download from the [releases page](https://github.com/nlaak/ktop/releases).
+<details>
+<summary><strong>MicroK8s</strong></summary>
 
 ```bash
-# Linux AMD64
+microk8s enable metrics-server
+```
+</details>
+
+<details>
+<summary><strong>k3s</strong></summary>
+
+metrics-server is included by default.
+</details>
+
+## 📦 Installation
+
+### Download Pre-built Binary
+
+Download the latest release for your platform from the [Releases](https://github.com/nlaak/ktop/releases) page.
+
+```bash
+# Linux (amd64)
 curl -LO https://github.com/nlaak/ktop/releases/latest/download/ktop-linux-amd64
 chmod +x ktop-linux-amd64
 sudo mv ktop-linux-amd64 /usr/local/bin/ktop
 
-# macOS ARM64 (Apple Silicon)
+# macOS (Apple Silicon)
 curl -LO https://github.com/nlaak/ktop/releases/latest/download/ktop-darwin-arm64
 chmod +x ktop-darwin-arm64
 sudo mv ktop-darwin-arm64 /usr/local/bin/ktop
 ```
 
-## Requirements
+### Build from Source
 
-- Kubernetes cluster with **metrics-server** installed
-- Valid kubeconfig file
-- Network access to the Kubernetes API server
+Requires Go 1.22 or later.
 
-### Installing metrics-server
-
-**Standard Kubernetes:**
 ```bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+git clone https://github.com/nlaak/ktop.git
+cd ktop
+make build
+sudo mv ktop /usr/local/bin/
 ```
 
-**MicroK8s:**
-```bash
-microk8s enable metrics-server
-```
-
-**k3s:**
-```bash
-# metrics-server is included by default
-```
-
-## Usage
+## 🚀 Usage
 
 ```bash
 # Basic usage (uses default kubeconfig)
 ktop
 
-# Specify kubeconfig
+# Specify kubeconfig file
 ktop -kubeconfig /path/to/kubeconfig
 
 # Use specific context
@@ -89,7 +103,7 @@ ktop -context my-cluster
 # Faster refresh rate
 ktop -refresh-interval 1s
 
-# Show system namespaces
+# Show system namespaces (kube-system, etc.)
 ktop -all-namespaces
 
 # Show more pods
@@ -106,10 +120,10 @@ ktop -top-pods 50
 | `-timeout` | `10s` | API call timeout |
 | `-top-pods` | `30` | Number of top pods to display |
 | `-all-namespaces` | `false` | Include system namespaces |
-| `-version` | - | Show version |
-| `-help` | - | Show help |
+| `-version` | — | Show version |
+| `-help` | — | Show help |
 
-## Keyboard Controls
+### Keyboard Controls
 
 | Key | Action |
 |-----|--------|
@@ -118,75 +132,112 @@ ktop -top-pods 50
 | `s` | Sort nodes (cycle: name → CPU → memory → status → pods) |
 | `p` | Sort pods (cycle: namespace → name → CPU → memory) |
 | `f` / `n` | Cycle namespace filter |
-| `t` | Toggle view mode (split / nodes only / pods only) |
+| `t` | Toggle view mode (split / nodes / pods) |
 | `a` | Toggle system namespaces visibility |
-| `Tab` | Switch focus between nodes and pods tables |
+| `Tab` | Switch focus between nodes and pods |
 | `?` | Show help |
 | `Esc` | Clear namespace filter |
 | `↑` / `↓` | Navigate selection |
 
-## UI Layout
+### Color Coding
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ ktop - cluster-name (context)   Nodes: 3/3  CPU: 25.0%  Mem: 45.2%     │
-├─────────────────────────────────────────────────────────────────────────┤
-│ NODES (sort: CPU ↓)                                                     │
-├──────────┬──────────┬──────────┬──────────┬──────────┬─────────────────┤
-│ NODE     │ STATUS   │ CPU      │ CPU%     │ MEMORY   │ MEM%   PODS GPU │
-├──────────┼──────────┼──────────┼──────────┼──────────┼─────────────────┤
-│ cqai     │ Ready    │ 2500m    │ 20.0%    │ 8.0Gi    │ 25.0%   24   2  │
-│ ox       │ Ready    │ 1200m    │ 10.0%    │ 4.0Gi    │ 12.0%   18   0  │
-│ mule     │ Ready    │ 800m     │ 6.0%     │ 3.0Gi    │ 9.0%    15   0  │
-├─────────────────────────────────────────────────────────────────────────┤
-│ PODS (top 30 by CPU ↓) [filter: all]                                   │
-├───────────────────┬────────────────────┬──────────┬─────────────────────┤
-│ NAMESPACE         │ POD                │ STATUS   │ CPU    MEMORY  ... │
-├───────────────────┼────────────────────┼──────────┼─────────────────────┤
-│ gpu-operator      │ gpu-feature-...    │ Running  │ 45m    128Mi       │
-│ kube-system       │ coredns-...        │ Running  │ 23m    45Mi        │
-│ default           │ my-app-deployment  │ Running  │ 156m   512Mi       │
-├─────────────────────────────────────────────────────────────────────────┤
-│ q quit  r refresh  s sort nodes  p pod sort  f/n namespace  t toggle   │
-└─────────────────────────────────────────────────────────────────────────┘
+| Level | Color | CPU/Memory Threshold |
+|-------|-------|---------------------|
+| Healthy | 🟢 Green | 0–50% |
+| Warning | 🟡 Yellow | 50–80% |
+| Critical | 🔴 Red | 80%+ |
+
+## ⚙️ Configuration
+
+### Customizing the Makefile
+
+The project uses a Makefile for building and deployment. You can customize these variables:
+
+#### Build Variables
+
+```makefile
+# Version format: YYYYMMDD.HHMM-{alpha|beta|prod}
+# Override release type when building:
+make build-linux RELEASE=prod
+make build-linux RELEASE=beta
+make build-all RELEASE=prod
 ```
 
-## Color Coding
+#### Deploy Variables
 
-| Usage Level | Color | Threshold |
-|-------------|-------|-----------|
-| Healthy | Green | 0-50% |
-| Warning | Yellow | 50-80% |
-| Critical | Red | 80%+ |
+Configure deployment to your cluster master or any remote host:
 
-| Status | Color |
-|--------|-------|
-| Ready | Green |
-| NotReady | Red |
-| Running | Green |
-| Pending | Yellow |
-| Failed | Red |
-| System namespace | Cyan |
+```makefile
+# Default values (edit in Makefile or override on command line)
+DEPLOY_HOST ?= 192.168.1.76
+DEPLOY_USER ?= andrew
+DEPLOY_PATH ?= /usr/local/bin/ktop
+```
 
-## Building
+**Override on command line:**
 
 ```bash
-# Build for current platform
-make build
+# Deploy to a different host
+make deploy DEPLOY_HOST=10.0.0.50 DEPLOY_USER=admin
 
-# Build for all platforms
-make build-all
-
-# Build for specific platforms
-make build-linux    # Linux amd64 & arm64
-make build-darwin   # macOS amd64 & arm64
-make build-windows  # Windows amd64
+# Deploy to user's home bin (no sudo required)
+make deploy-user DEPLOY_HOST=k8s-master DEPLOY_USER=ops
 ```
 
-## Development
+### Build Targets
 
 ```bash
-# Run directly
+make                  # Build for current platform
+make build-linux      # Build for Linux amd64 → bin/linux-amd64/ktop
+make build-linux-arm  # Build for Linux arm64 → bin/linux-arm64/ktop  
+make build-darwin     # Build for macOS amd64 → bin/darwin-amd64/ktop
+make build-darwin-arm # Build for macOS arm64 → bin/darwin-arm64/ktop
+make build-windows    # Build for Windows    → bin/windows-amd64/ktop.exe
+make build-all        # Build all platforms
+make release          # Build all platforms as production release
+make deploy           # Build and deploy to DEPLOY_HOST
+make clean            # Remove build artifacts
+make help             # Show all available targets
+```
+
+## 🏗️ Project Structure
+
+```
+ktop/
+├── cmd/ktop/          # Application entry point
+│   └── main.go
+├── internal/
+│   ├── config/        # CLI flags and configuration
+│   ├── k8s/           # Kubernetes client wrapper
+│   ├── metrics/       # Metrics collection and formatting
+│   ├── models/        # Data structures
+│   └── ui/            # Terminal UI (tview)
+├── bin/               # Build output (gitignored)
+│   ├── linux-amd64/
+│   ├── linux-arm64/
+│   ├── darwin-amd64/
+│   ├── darwin-arm64/
+│   └── windows-amd64/
+├── docs/              # Documentation and screenshots
+├── Makefile
+├── go.mod
+└── README.md
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development
+
+```bash
+# Run locally without building
 make run
 
 # Run with development flags
@@ -195,19 +246,25 @@ make run-dev
 # Format code
 make fmt
 
+# Run linter
+make lint
+
 # Run tests
 make test
-
-# Lint
-make lint
 ```
 
-## License
+## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- [tview](https://github.com/rivo/tview) - Terminal UI library
-- [client-go](https://github.com/kubernetes/client-go) - Kubernetes Go client
+- [tview](https://github.com/rivo/tview) — Terminal UI library
+- [client-go](https://github.com/kubernetes/client-go) — Official Kubernetes Go client
 - Inspired by [htop](https://htop.dev/), [nvtop](https://github.com/Syllo/nvtop), and [k9s](https://k9scli.io/)
+
+---
+
+<p align="center">
+  Made with ☕ by <a href="https://nlaak.com">Nlaak Studios</a>
+</p>
