@@ -15,38 +15,38 @@ const (
 
 // ResourceUsage holds current and capacity values for a resource
 type ResourceUsage struct {
-	Current  int64   // Current usage in base units (millicores for CPU, bytes for memory)
-	Capacity int64   // Total capacity
-	Percent  float64 // Usage percentage
+	Current  int64   `json:"current"`  // Current usage in base units (millicores for CPU, bytes for memory)
+	Capacity int64   `json:"capacity"` // Total capacity
+	Percent  float64 `json:"percent"`  // Usage percentage
 }
 
 // GPUInfo holds GPU-related information for a node
 type GPUInfo struct {
-	Count       int
-	MemoryUsed  int64
-	MemoryTotal int64
-	Utilization float64
+	Count       int     `json:"count"`
+	MemoryUsed  int64   `json:"memoryUsed"`
+	MemoryTotal int64   `json:"memoryTotal"`
+	Utilization float64 `json:"utilization"`
 }
 
 // NodeConditions represents various node pressure conditions
 type NodeConditions struct {
-	MemoryPressure bool
-	DiskPressure   bool
-	PIDPressure    bool
-	NetworkUnavail bool
+	MemoryPressure bool `json:"memoryPressure"`
+	DiskPressure   bool `json:"diskPressure"`
+	PIDPressure    bool `json:"pidPressure"`
+	NetworkUnavail bool `json:"networkUnavailable"`
 }
 
 // Node represents a Kubernetes node with its metrics
 type Node struct {
-	Name       string
-	Status     NodeStatus
-	CPU        ResourceUsage
-	Memory     ResourceUsage
-	Disk       ResourceUsage
-	GPU        *GPUInfo
-	PodCount   int
-	Conditions NodeConditions
-	Labels     map[string]string
+	Name       string            `json:"name"`
+	Status     NodeStatus        `json:"status"`
+	CPU        ResourceUsage     `json:"cpu"`
+	Memory     ResourceUsage     `json:"memory"`
+	Disk       ResourceUsage     `json:"disk"`
+	GPU        *GPUInfo          `json:"gpu,omitempty"`
+	PodCount   int               `json:"podCount"`
+	Conditions NodeConditions    `json:"conditions"`
+	Labels     map[string]string `json:"labels,omitempty"`
 }
 
 // PodStatus represents the status of a pod
@@ -62,44 +62,44 @@ const (
 
 // Pod represents a Kubernetes pod with its metrics
 type Pod struct {
-	Namespace      string
-	Name           string
-	NodeName       string
-	Status         PodStatus
-	CPU            int64 // millicores
-	Memory         int64 // bytes
-	ContainerCount int
-	RestartCount   int32
+	Namespace      string    `json:"namespace"`
+	Name           string    `json:"name"`
+	NodeName       string    `json:"nodeName"`
+	Status         PodStatus `json:"status"`
+	CPU            int64     `json:"cpu"`            // millicores
+	Memory         int64     `json:"memory"`         // bytes
+	ContainerCount int       `json:"containerCount"`
+	RestartCount   int32     `json:"restartCount"`
 }
 
 // ClusterInfo holds information about the connected cluster
 type ClusterInfo struct {
-	Name      string
-	Context   string
-	Server    string
-	Namespace string // current namespace if set
+	Name      string `json:"name"`
+	Context   string `json:"context"`
+	Server    string `json:"server"`
+	Namespace string `json:"namespace,omitempty"` // current namespace if set
 }
 
 // ClusterMetrics holds all metrics data for a point in time
 type ClusterMetrics struct {
-	Timestamp   time.Time
-	ClusterInfo ClusterInfo
-	Nodes       []Node
-	Pods        []Pod
-	Error       error
+	Timestamp   time.Time   `json:"timestamp"`
+	ClusterInfo ClusterInfo `json:"clusterInfo"`
+	Nodes       []Node      `json:"nodes"`
+	Pods        []Pod       `json:"pods"`
+	Error       error       `json:"-"`
 
 	// Aggregate stats
-	TotalCPUCapacity    int64 // millicores
-	TotalCPUUsed        int64 // millicores
-	TotalCPUCores       int   // number of cores
-	TotalMemoryCapacity int64
-	TotalMemoryUsed     int64
-	TotalDiskCapacity   int64
-	TotalDiskUsed       int64
-	TotalGPUs           int
-	TotalPods           int
-	TotalNodes          int
-	ReadyNodes          int
+	TotalCPUCapacity    int64 `json:"totalCPUCapacity"`    // millicores
+	TotalCPUUsed        int64 `json:"totalCPUUsed"`        // millicores
+	TotalCPUCores       int   `json:"totalCPUCores"`       // number of cores
+	TotalMemoryCapacity int64 `json:"totalMemoryCapacity"`
+	TotalMemoryUsed     int64 `json:"totalMemoryUsed"`
+	TotalDiskCapacity   int64 `json:"totalDiskCapacity"`
+	TotalDiskUsed       int64 `json:"totalDiskUsed"`
+	TotalGPUs           int   `json:"totalGPUs"`
+	TotalPods           int   `json:"totalPods"`
+	TotalNodes          int   `json:"totalNodes"`
+	ReadyNodes          int   `json:"readyNodes"`
 }
 
 // SortField represents the field to sort by

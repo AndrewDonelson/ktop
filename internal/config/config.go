@@ -44,6 +44,9 @@ type Config struct {
 	// Flags
 	ShowVersion bool
 	ShowHelp    bool
+
+	// Show resource as JSON to stdout (resources, pods, nodes, or empty for TUI)
+	ShowResource string
 }
 
 // NewConfig creates a new Config with default values
@@ -93,6 +96,8 @@ func (c *Config) ParseFlags() error {
 		"Show version information")
 	flag.BoolVar(&c.ShowHelp, "help", c.ShowHelp,
 		"Show help message")
+	flag.StringVar(&c.ShowResource, "show", c.ShowResource,
+		"Show resource data as JSON to stdout (resources, pods, nodes)")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -114,6 +119,10 @@ func (c *Config) ParseFlags() error {
 		fmt.Fprintf(os.Stderr, "  ?          Show help\n")
 		fmt.Fprintf(os.Stderr, "  ↑/↓        Navigate selection\n")
 		fmt.Fprintf(os.Stderr, "  Tab        Switch between nodes and pods\n")
+		fmt.Fprintf(os.Stderr, "\nJSON Output:\n")
+		fmt.Fprintf(os.Stderr, "  --show resources  Print all cluster metrics as JSON\n")
+		fmt.Fprintf(os.Stderr, "  --show pods       Print pod metrics as JSON\n")
+		fmt.Fprintf(os.Stderr, "  --show nodes      Print node metrics as JSON\n")
 		fmt.Fprintf(os.Stderr, "\nRequirements:\n")
 		fmt.Fprintf(os.Stderr, "  - Kubernetes cluster with metrics-server installed\n")
 		fmt.Fprintf(os.Stderr, "  - Valid kubeconfig file\n")
@@ -140,6 +149,9 @@ func (c *Config) Validate() error {
 	}
 	if c.TopPods > 1000 {
 		return fmt.Errorf("top-pods should not exceed 1000")
+	}
+	if c.ShowResource != "" && c.ShowResource != "resources" && c.ShowResource != "pods" && c.ShowResource != "nodes" {
+		return fmt.Errorf("--show must be one of: resources, pods, nodes")
 	}
 	return nil
 }
